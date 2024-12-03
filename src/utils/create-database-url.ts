@@ -1,15 +1,20 @@
-import {join} from 'path';
+import { join, resolve } from 'path';
+import { platform } from 'os';
 
-export const createDatabasePath = (directory: string) => join(directory, 'db.sqlite');
+export const createDatabasePath = (directory: string): string => {
+  return resolve(join(directory, 'db.sqlite'));
+};
 
-const createDatabaseUrl = (directory: string) => {
-  const url = `file:${createDatabasePath(directory)}?socket_timeout=10&connection_limit=1`;
+const createDatabaseUrl = (directory: string): string => {
+  let dbPath = createDatabasePath(directory);
 
-  if (process.platform === 'win32') {
-    return url.replaceAll(/\\/g, '\\\\');
+  dbPath = encodeURI(dbPath);
+
+  if (platform() === 'win32') {
+    dbPath = dbPath.replace(/\\/g, '\\\\');
   }
 
-  return url;
+  return `file:${dbPath}?socket_timeout=10&connection_limit=1`;
 };
 
 export default createDatabaseUrl;
