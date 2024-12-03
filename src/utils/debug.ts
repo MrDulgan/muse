@@ -1,3 +1,5 @@
-import debug from 'debug';
+import createDebug from 'debug';
 
-export default debug('muse');
+const debug = (namespace: string) => createDebug(`muse:${namespace}`);
+
+export default debug;
