@@ -1,18 +1,39 @@
 export const prettyTime = (seconds: number): string => {
-  const nSeconds = seconds % 60;
-  let nMinutes = Math.floor(seconds / 60);
-  const nHours = Math.floor(nMinutes / 60);
+  if (seconds < 0) throw new Error('Seconds cannot be negative.');
 
-  let res = '';
+  const hrs = Math.floor(seconds / 3600);
+  const mins = Math.floor((seconds % 3600) / 60);
+  const secs = Math.floor(seconds % 60);
 
-  if (nHours !== 0) {
-    res += `${Math.round(nHours).toString().padStart(2, '0')}:`;
-    nMinutes -= nHours * 60;
-  }
+  const pad = (num: number) => num.toString().padStart(2, '0');
 
-  res += `${Math.round(nMinutes).toString().padStart(2, '0')}:${Math.round(nSeconds).toString().padStart(2, '0')}`;
-
-  return res;
+  return hrs > 0
+    ? `${pad(hrs)}:${pad(mins)}:${pad(secs)}`
+    : `${pad(mins)}:${pad(secs)}`;
 };
 
-export const parseTime = (str: string): number => str.split(':').reduce((acc, time) => (60 * acc) + parseInt(time, 10), 0);
+export const parseTime = (str: string): number => {
+  const parts = str.split(':').map(part => parseInt(part, 10));
+
+  if (parts.some(isNaN)) {
+    throw new Error('Invalid time format. Expected format HH:MM:SS or MM:SS.');
+  }
+
+  if (parts.length > 3) {
+    throw new Error('Invalid time format. Too many parts.');
+  }
+
+  let totalSeconds = 0;
+  if (parts.length === 3) {
+    totalSeconds += parts[0] * 3600;
+    totalSeconds += parts[1] * 60;
+    totalSeconds += parts[2];
+  } else if (parts.length === 2) {
+    totalSeconds += parts[0] * 60;
+    totalSeconds += parts[1];
+  } else {
+    totalSeconds += parts[0];
+  }
+
+  return totalSeconds;
+};
