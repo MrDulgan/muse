@@ -1,74 +1,75 @@
-import {APIApplicationCommandOptionChoice} from 'discord-api-types/v10';
-import SpotifyWebApi from 'spotify-web-api-node';
+import { APIApplicationCommandOptionChoice } from 'discord-api-types/v10';
+import SpotifyWebApi, { SpotifyApi } from 'spotify-web-api-node';
 import getYouTubeSuggestionsFor from './get-youtube-suggestions-for.js';
 
-const filterDuplicates = <T extends {name: string}>(items: T[]) => {
-  const results: T[] = [];
-
-  for (const item of items) {
-    if (!results.some(result => result.name === item.name)) {
-      results.push(item);
+const filterDuplicates = <T extends { name: string }>(items: T[]): T[] => {
+  const seen = new Set<string>();
+  return items.filter(item => {
+    if (seen.has(item.name)) {
+      return false;
     }
-  }
-
-  return results;
+    seen.add(item.name);
+    return true;
+  });
 };
 
-const getYouTubeAndSpotifySuggestionsFor = async (query: string, spotify?: SpotifyWebApi, limit = 10): Promise<APIApplicationCommandOptionChoice[]> => {
-  // Only search Spotify if enabled
-  const spotifySuggestionPromise = spotify === undefined
-    ? undefined
-    : spotify.search(query, ['album', 'track'], {limit});
+const getYouTubeAndSpotifySuggestionsFor = async (
+  query: string,
+  spotify?: SpotifyWebApi,
+  limit = 10
+): Promise<APIApplicationCommandOptionChoice[]> => {
+  const spotifyPromise = spotify
+    ? spotify.search(query, ['album', 'track'], { limit })
+    : null;
 
-  const youtubeSuggestions = await getYouTubeSuggestionsFor(query);
+  const youtubePromise = getYouTubeSuggestionsFor(query);
 
-  const totalYouTubeResults = youtubeSuggestions.length;
-  const numOfYouTubeSuggestions = Math.min(limit, totalYouTubeResults);
+  const [youtubeSuggestions, spotifyResponse] = await Promise.all([
+    youtubePromise,
+    spotifyPromise ? spotifyPromise : Promise.resolve(null),
+  ]);
 
-  let suggestions: APIApplicationCommandOptionChoice[] = [];
+  const numOfYouTubeSuggestions = Math.min(limit, youtubeSuggestions.length);
+  let suggestions: APIApplicationCommandOptionChoice[] = youtubeSuggestions.slice(0, numOfYouTubeSuggestions).map(suggestion => ({
+    name: `YouTube: ${suggestion}`,
+    value: suggestion,
+  }));
 
-  suggestions.push(
-    ...youtubeSuggestions
-      .slice(0, numOfYouTubeSuggestions)
-      .map(suggestion => ({
-        name: `YouTube: ${suggestion}`,
-        value: suggestion,
-      }),
-      ));
-
-  if (spotify !== undefined && spotifySuggestionPromise !== undefined) {
-    const spotifyResponse = (await spotifySuggestionPromise).body;
-    const spotifyAlbums = filterDuplicates(spotifyResponse.albums?.items ?? []);
-    const spotifyTracks = filterDuplicates(spotifyResponse.tracks?.items ?? []);
+  if (spotifyResponse) {
+    const spotifyBody = spotifyResponse.body as SpotifyApi.SearchResponse;
+    const spotifyAlbums = filterDuplicates(spotifyBody.albums?.items ?? []);
+    const spotifyTracks = filterDuplicates(spotifyBody.tracks?.items ?? []);
 
     const totalSpotifyResults = spotifyAlbums.length + spotifyTracks.length;
 
-    // Number of results for each source should be roughly the same.
-    // If we don't have enough Spotify suggestions, prioritize YouTube results.
     const maxSpotifySuggestions = Math.floor(limit / 2);
     const numOfSpotifySuggestions = Math.min(maxSpotifySuggestions, totalSpotifyResults);
 
     const maxSpotifyAlbums = Math.floor(numOfSpotifySuggestions / 2);
-    const numOfSpotifyAlbums = Math.min(maxSpotifyAlbums, spotifyResponse.albums?.items.length ?? 0);
-    const maxSpotifyTracks = numOfSpotifySuggestions - numOfSpotifyAlbums;
+    const maxSpotifyTracks = numOfSpotifySuggestions - maxSpotifyAlbums;
 
-    // Make room for spotify results
-    const maxYouTubeSuggestions = limit - numOfSpotifySuggestions;
-    suggestions = suggestions.slice(0, maxYouTubeSuggestions);
-
-    suggestions.push(
+    const spotifySuggestionsFormatted: APIApplicationCommandOptionChoice[] = [
       ...spotifyAlbums.slice(0, maxSpotifyAlbums).map(album => ({
         name: `Spotify: 💿 ${album.name}${album.artists.length > 0 ? ` - ${album.artists[0].name}` : ''}`,
         value: `spotify:album:${album.id}`,
       })),
-    );
-
-    suggestions.push(
       ...spotifyTracks.slice(0, maxSpotifyTracks).map(track => ({
         name: `Spotify: 🎵 ${track.name}${track.artists.length > 0 ? ` - ${track.artists[0].name}` : ''}`,
         value: `spotify:track:${track.id}`,
       })),
-    );
+    ];
+
+    const maxYouTubeSuggestions = limit - spotifySuggestionsFormatted.length;
+    if (maxYouTubeSuggestions > 0) {
+      suggestions = youtubeSuggestions.slice(0, maxYouTubeSuggestions).map(suggestion => ({
+        name: `YouTube: ${suggestion}`,
+        value: suggestion,
+      }));
+    } else {
+      suggestions = [];
+    }
+
+    suggestions.push(...spotifySuggestionsFormatted);
   }
 
   return suggestions;
