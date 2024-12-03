@@ -1,15 +1,13 @@
-export default (width: number, progress: number): string => {
-  const dotPosition = Math.floor(width * progress);
+const getProgressBar = (width: number, progress: number): string => {
+  // Clamp progress between 0 and 1
+  const clampedProgress = Math.max(0, Math.min(progress, 1));
+  const dotPosition = Math.floor(width * clampedProgress);
 
-  let res = '';
+  const bar = Array.from({ length: width }, (_, i) => 
+    i === dotPosition ? '🔘' : '▬'
+  ).join('');
 
-  for (let i = 0; i < width; i++) {
-    if (i === dotPosition) {
-      res += '🔘';
-    } else {
-      res += '▬';
-    }
-  }
-
-  return res;
+  return bar;
 };
+
+export default getProgressBar;
