@@ -1,2 +1,5 @@
-export const ONE_HOUR_IN_SECONDS = 60 * 60;
-export const ONE_MINUTE_IN_SECONDS = 1 * 60;
+export const TIME_CONSTANTS = {
+  ONE_MINUTE: 60,
+  ONE_HOUR: 60 * 60,
+  ONE_DAY: 60 * 60 * 24,
+} as const;
