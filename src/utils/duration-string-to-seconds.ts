@@ -1,21 +1,25 @@
 import parse from 'parse-duration';
 
-/**
- * Parse duration strings to seconds.
- * @param str any common duration format, like 1m or 1hr 30s. If the input is a number it's assumed to be in seconds.
- * @returns seconds
- */
-const durationStringToSeconds = (str: string) => {
-  let seconds;
-  const isInputSeconds = Boolean(/\d+$/.exec(str));
-
-  if (isInputSeconds) {
-    seconds = Number.parseInt(str, 10);
-  } else {
-    seconds = parse(str) / 1000;
+const durationToSeconds = (input: string | number): number => {
+  if (typeof input === 'number') {
+    if (input < 0) throw new Error("Duration cannot be negative.");
+    return input;
   }
 
-  return seconds;
+  const trimmedInput = input.trim();
+
+  if (/^\d+$/.test(trimmedInput)) {
+    const seconds = Number.parseInt(trimmedInput, 10);
+    if (isNaN(seconds)) throw new Error("Invalid numeric input for duration.");
+    return seconds;
+  }
+
+  const parsedMilliseconds = parse(trimmedInput);
+  if (parsedMilliseconds === null || isNaN(parsedMilliseconds)) {
+    throw new Error("Invalid duration format.");
+  }
+
+  return Math.floor(parsedMilliseconds / 1000);
 };
 
-export default durationStringToSeconds;
+export default durationToSeconds;
