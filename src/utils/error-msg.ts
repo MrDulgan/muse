@@ -1,13 +1,18 @@
-export default (error?: string | Error): string => {
-  let str = 'unknown error';
+const formatErrorMessage = (error?: string | Error): string => {
+  const prefix = '🚫 Error:';
+  
+  if (!error) return `${prefix} Unknown error.`;
 
-  if (error) {
-    if (typeof error === 'string') {
-      str = `🚫 ope: ${error}`;
-    } else if (error instanceof Error) {
-      str = `🚫 ope: ${error.message}`;
-    }
+  if (typeof error === 'string') {
+    return `${prefix} ${error}`;
   }
 
-  return str;
+  if (error instanceof Error) {
+    return `${prefix} ${error.message}`;
+  }
+
+  // Fallback for unexpected types
+  return `${prefix} An unexpected error occurred.`;
 };
+
+export default formatErrorMessage;
